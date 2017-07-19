@@ -45,7 +45,6 @@
 #include "rtc_regs.h"
 #include "trim_regs.h"
 #include "board.h"
-
 #include "transducer.h"
 
 #include <tmr.h>
@@ -54,7 +53,7 @@
 #include <stdio.h>
 
 #define TIMESTAMP_TIMER	MXC_TMR1
-#define ARRAY_COUNT(x) (sizeof(x)/sizeof(*(x)))
+
 	
 // The MAX35103 is connected to SPIM0A:
 
