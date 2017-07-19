@@ -1,0 +1,6 @@
+[submodule "csl"]
+	path = csl
+	url = git@github.com:maxim-ic-flow/max32620.git
+[submodule "max3510x"]
+	path = max3510x
+	url = git@github.com:maxim-ic-flow/max3510x.git
