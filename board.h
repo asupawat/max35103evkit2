@@ -34,6 +34,11 @@
 #include "max3510x.h"
 #include "gpio.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 uint8_t board_read_bcd_switches(void);
 void board_wait( uint32_t ms );
 void board_init( void );
@@ -55,4 +60,8 @@ void board_flash_read( void *p_data, uint16_t size );
 
 #define BOARD_J3_UART				0				// defines the uart associated with the 6-pin header 
 #define BOARD_MBED_UART			3				// uart connected to the mbed pico module
+
+#ifdef __cplusplus
+};
+#endif
 

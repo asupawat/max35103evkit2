@@ -31,9 +31,19 @@
  *
  ******************************************************************************/
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 void transducer_init(void);
 uint8_t transducer_hit_count( void );
 const max3510x_registers_t * transducer_config( void );
 float_t transducer_sos( float_t up, float_t down);
 double_t transducer_flow( double_t tpu, double_t tpd );
 double_t tranducer_propagation_time( double_t hit_average );
+
+#ifdef __cplusplus
+};
+#endif
+

@@ -250,6 +250,8 @@ void board_init(void)
 	init_uart(BOARD_J3_UART, &s_j3_uart_cfg, 115200 );
 }
 
+#if !defined(__MBED__)
+
 // SystemInit() is modified from what exists in the CSL to accomodate the fact that the 32KHz clock
 // isn't available on board reset
 
@@ -353,6 +355,7 @@ void SystemInit(void)
 	SystemCoreClockUpdate();
 }
 
+#endif
 
 uint8_t board_read_bcd_switches(void)
 {
@@ -462,6 +465,7 @@ uint16_t board_uart_write( void *pv, uint16_t length )
 {
 	return UART_Write( s_p_uart, (uint8_t *)pv, length);
 }
+
 
 uint16_t board_uart_read( void *pv, uint16_t length )
 {
