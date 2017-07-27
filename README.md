@@ -5,7 +5,7 @@ board support for the MAX35103EVKIT2
 
 This repository contains the board support files for the MAX35103EVKIT2 and is used by application examples found elsewhere under the maxim-ic-flow github organization.  This could serve as a starting point for a new MAX35103EVKIT2 application.
 
-For an example of how to use this repo, see [https://github.com/maxim-ic-flow/volumetric](volumetric).
+For an example of how to use this repo, see [volumetric](https://github.com/maxim-ic-flow/volumetric).
 
 ## Repository
 
