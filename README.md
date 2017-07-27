@@ -1,6 +1,8 @@
 # max35103evkit2
 board support for the MAX35103EVKIT2
 
+![MAX35103EVKIT2 contents](/doc/contents.jpg)
+
 ## Overview
 
 This repository contains the board support files for the MAX35103EVKIT2 and is used by application examples found elsewhere under the maxim-ic-flow github organization.  This could serve as a starting point for a new MAX35103EVKIT2 application.
