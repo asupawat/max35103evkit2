@@ -1,5 +1,5 @@
 # max35103evkit2
-board support for the MAX35103EVKIT2
+Board support library for the MAX35103EVKIT2
 
 ![MAX35103EVKIT2 contents](/doc/contents.jpg)
 
