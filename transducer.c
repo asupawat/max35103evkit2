@@ -76,8 +76,8 @@
 #define SQUELCH_TIME_US		52.0
 #define UPDOWN_CYCLE_TIME	MAX3510X_REG_TOF2_TOF_CYC_0US
 
-#define T1_THRESHOLD		0.050
-#define T2_THRESHOLD		0
+#define T1_THRESHOLD		65	  // mV
+#define T2_THRESHOLD		0			// mV
 
 #define RATE_8XS			8		// must be 8X or 1X (see datasheet)
 #define TOF_PERIOD			0.0625	// TOF Difference Measurement Rate (seconds)
@@ -231,7 +231,7 @@ double_t transducer_flow( double_t up, double_t down )
 
 	double prod = tpu * tpd;
 	double sum = tpu + tpd;
-	double diff = tpu - tpd;
+	double diff = tpd - tpu;
 	double tpu2 = tpu * tpu;
 	double tpd2 = tpd * tpd;
 	double sos = tpu2 + tpd2;

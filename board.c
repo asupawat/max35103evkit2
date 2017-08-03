@@ -160,7 +160,7 @@ static void init_uart( uint32_t uart_ndx, const ioman_cfg_t *p_ioman_cfg, uint32
 
 void board_init(void)
 {
-	const uint8_t uart_ndx = BOARD_MBED_UART;
+	const uint8_t uart_ndx = BOARD_J3_UART;
 	
 	const uint16_t board_rev_addr = (MAX3510X_FLASH_BLOCK_SIZE_WORDS*MAX3510X_FLASH_BLOCK_COUNT)-2;
 	volatile uint16_t isr_status;
