@@ -14,7 +14,7 @@ For an example of how to use this library, see [volumetric](https://github.com/m
 Please note that this project uses git submodules.  The proper way to clone this repository is as follows:
 
 ```
-git clone --recursive https://github.com/maxim-ic-flow/volumetric.git
+git clone --recursive https://github.com/maxim-ic-flow/max35103evkit2.git
 ```
 To switch between branches:
 
