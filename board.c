@@ -82,9 +82,11 @@
 #define S12 PIN_6
 #define S10 PIN_7
 
-const gpio_cfg_t g_board_led = { PORT_5, PIN_0, GPIO_FUNC_GPIO, GPIO_PAD_NORMAL };
-const gpio_cfg_t g_board_relay = { BOARD_RELAY_PORT, BOARD_RELAY_PIN, GPIO_FUNC_GPIO, GPIO_PAD_NORMAL };
-const gpio_cfg_t g_board_max3510x_int = { MAX3510X_INT_PORT, MAX3510X_INT_PIN, GPIO_FUNC_GPIO, GPIO_PAD_INPUT_PULLUP };
+max3510x_t g_max3510x;
+
+static const gpio_cfg_t s_board_led = { PORT_5, PIN_0, GPIO_FUNC_GPIO, GPIO_PAD_NORMAL };
+static const gpio_cfg_t s_board_relay = { BOARD_RELAY_PORT, BOARD_RELAY_PIN, GPIO_FUNC_GPIO, GPIO_PAD_NORMAL };
+static const gpio_cfg_t s_board_max3510x_int = { MAX3510X_INT_PORT, MAX3510X_INT_PIN, GPIO_FUNC_GPIO, GPIO_PAD_INPUT_PULLUP };
 
 static const gpio_cfg_t g_board_max3510x_reset = { PORT_1, PIN_1, GPIO_FUNC_GPIO, GPIO_PAD_NORMAL };
 
@@ -121,19 +123,6 @@ void UART3_IRQHandler(void)
     UART_Handler(MXC_UART_GET_UART(BOARD_MBED_UART));
 }
 
-static void init_isr(void * pv_status )
-{
-	uint16_t *p_status = (uint16_t*)pv_status;
-	*p_status |= max3510x_interrupt_status( &g_max35103 );
-}
-
-static void wait_for_interrupt( volatile uint16_t *p_isr_status, uint16_t any )
-{
-	while( !(*p_isr_status & any) );
-	GPIO_IntDisable(&g_board_max3510x_int);
-	*p_isr_status &= ~any;
-	GPIO_IntEnable(&g_board_max3510x_int);
-}
 
 static void init_uart( uint32_t uart_ndx, const ioman_cfg_t *p_ioman_cfg, uint32_t baud )
 {
@@ -158,32 +147,34 @@ static void init_uart( uint32_t uart_ndx, const ioman_cfg_t *p_ioman_cfg, uint32
 	NVIC_EnableIRQ(irq);
 }
 
-void board_init(void)
+void board_init(max3510x_isr_fn p_max3510x_isr)
 {
 	const uint8_t uart_ndx = BOARD_J3_UART;
 	
 	const uint16_t board_rev_addr = (MAX3510X_FLASH_BLOCK_SIZE_WORDS*MAX3510X_FLASH_BLOCK_COUNT)-2;
-	volatile uint16_t isr_status;
 
-	SYS_IOMAN_UseVDDIOH( &g_board_relay );
-	SYS_IOMAN_UseVDDIOH( &g_board_led );
+	SYS_IOMAN_UseVDDIOH( &s_board_relay );
+	SYS_IOMAN_UseVDDIOH( &s_board_led );
 	SYS_IOMAN_UseVDDIOH( &max3510x_spi );
 	SYS_IOMAN_UseVDDIOH( &s_j3_uart );
-	SYS_IOMAN_UseVDDIOH( &g_board_max3510x_int );
+	SYS_IOMAN_UseVDDIOH( &s_board_max3510x_int );
 	SYS_IOMAN_UseVDDIOH( &g_board_max3510x_reset );
  	SYS_IOMAN_UseVDDIOH( &bcd_switches );
 	
-	GPIO_OutPut( &g_board_relay, ~0 );
-	GPIO_OutPut( &g_board_led, ~0 );
+	GPIO_OutPut( &s_board_relay, ~0 );
+	GPIO_OutPut( &s_board_led, ~0 );
 
 	GPIO_Config(&g_board_max3510x_reset);
-	GPIO_Config(&g_board_relay);
-	GPIO_Config(&g_board_max3510x_int);
+	GPIO_Config(&s_board_relay);
+	GPIO_Config(&s_board_max3510x_int);
 	GPIO_Config(&max3510x_spi);
 	GPIO_Config(&s_j3_uart);
 	GPIO_Config(&s_mbed_uart);
-	GPIO_Config(&g_board_led);
+	GPIO_Config(&s_board_led);
 	GPIO_Config(&bcd_switches);
+	
+	board_tdc_interrupt_enable(false);
+	GPIO_IntConfig(&s_board_max3510x_int, GPIO_INT_FALLING_EDGE);
 	
 	s_p_uart = MXC_UART_GET_UART(uart_ndx);
 	
@@ -194,12 +185,12 @@ void board_init(void)
 		cont_cfg.polarity = TMR_POLARITY_INIT_LOW;  //start GPIO low
 		cont_cfg.compareCount = ~0;
 		while( TMR_Init(TIMESTAMP_TIMER, TMR_PRESCALE_DIV_2_0, NULL) != E_NO_ERROR )
-			GPIO_OutPut( &g_board_led, 0 );
+			GPIO_OutPut( &s_board_led, 0 );
 		TMR32_Config(TIMESTAMP_TIMER, &cont_cfg);
 	}
 
 	TMR32_Start(TIMESTAMP_TIMER);
-	board_wait(10);									// wait for power to settle
+	board_wait_ms(10);									// wait for power to settle
 	
 	{
 		// initialize the SPI port connected to the MAX35103
@@ -208,29 +199,22 @@ void board_init(void)
 		sys_cfg.io_cfg = spi_cfg;
 		if( SPIM_Init(MXC_SPIM0, &max3510x_spim_cfg, &sys_cfg) != E_NO_ERROR )
 		{
-			GPIO_OutPut( &g_board_led, 0 );
+			GPIO_OutPut( &s_board_led, 0 );
 			while( 1 );	// initialization failed -- step into CSL to determine the reason
 		}
 	}
 
-	
-	GPIO_IntDisable(&g_board_max3510x_int);
-	GPIO_IntConfig(&g_board_max3510x_int, GPIO_INT_LOW_LEVEL);
-	GPIO_RegisterCallback(&g_board_max3510x_int, init_isr, (void*)&isr_status );
 
 	transducer_init();
 	
 	GPIO_OutPut(&g_board_max3510x_reset,~0);	// take the MAX35103 out of reset
-	board_wait(1);			// give the MAX35103 some time come out of reset
+	max3510x_wait_for_reset_complete( &g_max3510x );
 	max3510x_init(&g_max35103, transducer_config() );	// configure the MAX3510x according per transducer requirements
-	board_wait(1);			// give the MAX35103 some time to init
-
-	GPIO_IntClr(&g_board_max3510x_int);
-	NVIC_EnableIRQ(MXC_GPIO_GET_IRQ(g_board_max3510x_int.port));
-	GPIO_IntEnable(&g_board_max3510x_int);
+	board_wait_ms(1);			// give the MAX35103 some time to init
 
 	max3510x_ldo(&g_max35103,max3510x_ldo_mode_on);
-	wait_for_interrupt(&isr_status, MAX3510X_REG_INTERRUPT_STATUS_LDO);
+	max3510x_poll_interrupt_status( &g_max35103 );
+	
 	uint16_t sig = max3510x_read_flash( &g_max35103, board_rev_addr );
 	if( sig == BOARD_SIGNATURE )
 	{
@@ -244,10 +228,11 @@ void board_init(void)
 	
 	max3510x_ldo(&g_max35103,max3510x_ldo_mode_off);
 
-	GPIO_RegisterCallback(&g_board_max3510x_int, max3510x_int_isr, NULL );
+	GPIO_RegisterCallback(&s_board_max3510x_int, p_max3510x_isr, NULL );
 
 	init_uart(BOARD_MBED_UART, &s_mbed_uart_cfg, 9600 );
 	init_uart(BOARD_J3_UART, &s_j3_uart_cfg, 115200 );
+	
 }
 
 // SystemInit() is modified from what exists in the CSL to accomodate the fact that the 32KHz clock
@@ -408,7 +393,7 @@ uint8_t board_read_bcd_switches(void)
 	return value;
 }
 
-void board_wait( uint32_t ms )
+void board_wait_ms( uint32_t ms )
 {
 	// delay at least 'ms' milliseconds using the timestamp timer
 	uint32_t one_ms = SYS_SysTick_GetFreq()/1000;
@@ -417,7 +402,7 @@ void board_wait( uint32_t ms )
 	while( TMR32_GetCount(TIMESTAMP_TIMER) - now < delay );
 }
 
-void max3510x_spi_xfer( max3510x_t *p, void *pv_in, const void *pv_out, uint8_t count )
+void max3510x_spi_xfer( max3510x_t p, void *pv_in, const void *pv_out, uint8_t count )
 {
 	// used by the MAX3510x module to interface with the hardware
 
@@ -472,12 +457,12 @@ void board_tdc_interrupt_enable(bool b)
 {
 	if( b )
 	{
-		NVIC_EnableIRQ(MXC_GPIO_GET_IRQ(g_board_max3510x_int.port));
-		GPIO_IntEnable( &g_board_max3510x_int );
+		NVIC_EnableIRQ(MXC_GPIO_GET_IRQ(s_board_max3510x_int.port));
+		GPIO_IntEnable( &s_board_max3510x_int );
 	}
 	else
 	{
-		GPIO_IntDisable( &g_board_max3510x_int );
+		GPIO_IntDisable( &s_board_max3510x_int );
 	}
 }
 bool board_flash_write( const void *p_data, uint16_t size )
@@ -487,4 +472,19 @@ bool board_flash_write( const void *p_data, uint16_t size )
 
 void board_flash_read( void *p_data, uint16_t size )
 {
+}
+
+void board_max3510x_clear_interrupt( void )
+{
+	GPIO_IntClr(&s_board_max3510x_int);
+}
+
+void board_relay( bool on )
+{
+	GPIO_OutPut(&s_board_relay, on ? 0 : ~0 );
+}
+
+void board_led( bool on )
+{
+	 GPIO_OutPut( &s_board_led, on ? 0 : ~0 );
 }

@@ -34,18 +34,21 @@
 #include "max3510x.h"
 #include "gpio.h"
 
-uint8_t board_read_bcd_switches(void);
-void board_wait( uint32_t ms );
-void board_init( void );
+extern max3510x_t g_max3510x;
 
-extern const gpio_cfg_t g_board_led;
-extern const gpio_cfg_t g_board_relay;
-extern const gpio_cfg_t g_board_max3510x_int;
+typedef void (*max3510x_isr_fn)( void *);
+
+void board_led( bool on );
+void board_relay( bool on );
+uint8_t board_read_bcd_switches(void);
+void board_wait_ms( uint32_t ms );
+void board_init(max3510x_isr_fn p_max3510x_isr);
 
 
 void max3510x_int_isr(void * pv);
 extern max3510x_t g_max35103;
 
+void board_max3510x_clear_interrupt( void );
 void board_printf( const char *p_format, ... );
 uint16_t board_uart_write( void *pv, uint16_t length );
 uint16_t board_uart_read( void *pv, uint16_t length );
